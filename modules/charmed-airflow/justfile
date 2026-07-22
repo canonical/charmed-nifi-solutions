@@ -1,0 +1,133 @@
+set export := true
+
+# Default: show all recipes
+default:
+    @just --list
+
+# Clean tfvars file
+[private]
+clean_tfvars variables_file:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    if [ -f "${variables_file}" ]; then
+        sed -i '/^model_uuid[[:space:]]*=/d' "${variables_file}"
+    fi
+
+# Initialize terraform
+[private]
+initialize:
+    #!/usr/bin/bash
+    if [ ! -d ".terraform" ]; then
+        terraform init -backend=false
+    fi
+
+# Destroy model if exists
+[private]
+destroy-model:
+    juju destroy-model --no-prompt --destroy-storage nifi-test --force || true
+
+# Add a fresh model
+add-model: (destroy-model)
+    juju add-model nifi-test
+
+# Validate and create tfvars file
+validate_test_tfvars variables_file: (clean_tfvars variables_file)
+    #!/usr/bin/bash
+
+    set -euxo pipefail
+    MODEL_UUID=$(juju show-model nifi-test --format=json | jq -r '."nifi-test"["model-uuid"]')
+    if ! juju show-model "${MODEL_UUID}" >/dev/null 2>&1; then
+        exit 1
+    fi
+    echo "model_uuid = \"${MODEL_UUID}\"" >> "${variables_file}"
+
+# Terraform fmt
+fmt: (initialize)
+    terraform fmt -recursive
+
+# Terraform validate
+validate: (initialize)
+    terraform validate
+
+# Lint
+lint:
+    tflint
+
+# Run kgoss checks
+kgoss-checks:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    
+    env GOSS_FILES_PATH="test" \
+    GOSS_OPTS="--color" \
+    GOSS_WAIT_OPTS="-r 480s -s 2s" \
+    GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
+    kgoss run -i ubuntu/nifi:2-24.04_stable -p
+
+# Run nifi pod and attach shell in interactive mode
+kgoss-checks-run:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    
+    env GOSS_FILES_PATH="test" \
+    GOSS_OPTS="--color" \
+    GOSS_WAIT_OPTS="-r 480s -s 2s" \
+    GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
+    kgoss edit -i ubuntu/nifi:2-24.04_stable -p
+
+# Apply with variables file
+apply variables_file: (initialize)
+    terraform apply -auto-approve -var-file="${variables_file}"
+
+# Destroy terraform and model with variables file
+destroy variables_file:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    if [ ! -f "${variables_file}" ]; then
+        exit 1
+    fi
+    terraform destroy -auto-approve -var-file="${variables_file}" || true
+    just destroy-model
+
+# Wait for all applications to be active
+wait-for-active:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    timeout=1200
+    elapsed=0
+    interval=10
+    while [ $elapsed -lt $timeout ]; do
+        # Run the command on intervals to make sure juju sees the actual state of the model
+        # Sometimes it gets stuck at waiting even if applications in the model are active
+        # if we just call it directly. This is likely a bug on juju's end.
+        if juju wait-for model nifi-test \
+            --query='forEach(applications, app => app.status == "active")' \
+            --timeout=${interval}s 2>/dev/null; then
+            exit 0
+        fi
+        elapsed=$((elapsed + interval))
+    done
+    echo "Timed out waiting for model to become active"
+    exit 1
+
+# Generic test (create model, apply, wait, kgoss checks, cleanup)
+[private]
+_test tfvars:
+    #!/usr/bin/bash
+    set -euxo pipefail
+
+    trap 'just destroy "{{ tfvars }}"' EXIT
+
+    just add-model
+
+    just validate_test_tfvars "{{ tfvars }}"
+
+    just apply "{{ tfvars }}"
+
+    just wait-for-active
+
+    just kgoss-checks
+
+# Full test (default)
+test: (_test "test/terraform_test_local_executor.tfvars")

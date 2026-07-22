@@ -1,0 +1,9 @@
+command:
+  install-deps:
+    exec: |
+      apt update && apt install -y curl jq
+    exit-status: 0
+  nifi-api-health-check-ready:
+    exec: >-
+      curl -fsS http://nifi-endpoints.nifi-test.svc.cluster.local:8443/nifi-api/controller/cluster
+    exit-status: 0
