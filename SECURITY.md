@@ -14,7 +14,7 @@ Charmed Nifi follows Canonical's standard charm support lifecycle, aligned with 
 
 | Track    | Apache Nifi | Ubuntu Base              | Status          | End of Standard Support |
 | -------- | -------------- | ------------------------ | --------------- | ----------------------- |
-| 2.10/edge | 2.10.x          | Ubuntu 26.04 LTS (Noble) | **Pre-release** | TBD                     |
+| 2.10/edge | 2.10.x          | Ubuntu 26.04 LTS (Resolute) | **Pre-release** | TBD                     |
 
 Older tracks receive no further security updates. Users are encouraged to upgrade to a supported track.
 
@@ -26,4 +26,4 @@ Older tracks receive no further security updates. Users are encouraged to upgrad
 | **Security Maintenance** | Security patches only; no new features or non-critical bug fixes. |
 | **End of Life (EOL)**    | No further updates. Users must upgrade to a supported track.      |
 
-Support periods are defined in the Workflows team support policy. The current `2.9/edge` track is in **Pre-release** and will transition to Standard Support upon stable promotion, followed by Security Maintenance prior to its End of Standard Support date.
+Support periods are defined in the Workflows team support policy. The current `2.10/edge` track is in **Pre-release** and will transition to Standard Support upon stable promotion, followed by Security Maintenance prior to its End of Standard Support date.
