@@ -30,13 +30,11 @@ The NiFi charm input object supports:
 | --- | --- | --- | --- |
 | `app_name` | string | Application name to deploy | `nifi` |
 | `channel` | string | Charm channel to deploy from | `2.10/edge` |
-| `base` | string | Base to deploy the application with | `null` |
 | `revision` | number | Charm revision to use | `null` |
 | `units` | number | Number of application units | `1` |
 | `config` | map(string) | Charm-specific configuration options | `{}` |
-| `sensitive_props_key` | string | Sensitive properties encryption key (min 12 characters) | `null` |
 
-**Note:** The `sensitive_props_key` is required for NiFi to become active. This key is used to encrypt sensitive values in flow definitions.
+**Important:** The `config` map must include a `sensitive-props-key` entry with a value of at least 12 characters. This key is used to encrypt sensitive values in NiFi flow definitions. Without it, the charm will remain in BlockedStatus.
 
 ---
 
@@ -58,7 +56,9 @@ This solution module can be used standalone or as part of a higher-level Terrafo
 model_uuid = "<model-uuid>"
 
 nifi_k8s = {
-  sensitive_props_key = "my-secret-key-12345"
+  config = {
+    "sensitive-props-key" = "my-secret-key-12345"
+  }
 }
 ```
 
@@ -68,11 +68,11 @@ nifi_k8s = {
 model_uuid = "<model-uuid>"
 
 nifi_k8s = {
-  app_name            = "my-nifi"
-  channel             = "2.10/edge"
-  units               = 1
-  sensitive_props_key = "my-very-secure-key-123"
+  app_name = "my-nifi"
+  channel  = "2.10/edge"
+  units    = 1
   config = {
+    "sensitive-props-key" = "my-very-secure-key-123"
     # Additional NiFi configuration options
   }
 }
@@ -84,7 +84,7 @@ nifi_k8s = {
 
 ### Running Tests
 
-For module validation and smoke tests (including `kgoss` service/API checks):
+For module validation and smoke tests (including `kgoss` API checks):
 
 ```bash
 just test
@@ -92,22 +92,25 @@ just test
 
 `just test` performs the following:
 1. Creates a fresh `nifi-test` Juju model
-2. Applies the Terraform configuration from [test/terraform_test_local_executor.tfvars](test/terraform_test_local_executor.tfvars)
-3. Waits for NiFi to reach active status
-4. Runs `kgoss` checks to verify NiFi cluster connectivity
+2. Generates a dynamic tfvars file with model UUID
+3. Generates and configures a random sensitive-props-key
+4. Applies the Terraform configuration
+5. Waits for NiFi to reach active status
+6. Runs `kgoss` checks to verify NiFi API health
 
 The test validates:
-- NiFi API accessibility (`http://nifi-endpoints.nifi-test.svc.cluster.local:8443/nifi-api/controller/cluster`)
-- Cluster node status (CONNECTED)
+- **NiFi version**: Confirms NiFi 2.10.0 is deployed and running
+- **System diagnostics endpoint**: `http://nifi-0.nifi-endpoints.nifi-test.svc.cluster.local:8080/nifi-api/system-diagnostics`
+- **Flow controller status**: `http://nifi-0.nifi-endpoints.nifi-test.svc.cluster.local:8080/nifi-api/flow/status`
 
 ---
 
 ### Cleanup
 
-To remove the deployment and destroy the associated Juju model:
+The test automatically cleans up on exit. To manually destroy:
 
 ```bash
-just destroy test/terraform_test_local_executor.tfvars
+just destroy test/terraform_test.tfvars
 ```
 
 ---

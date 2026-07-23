@@ -3,5 +3,5 @@
 
 output "nifi_k8s" {
   description = "NiFi application resource."
-  value       = juju_application.nifi_k8s
+  value       = module.nifi_k8s.application
 }
