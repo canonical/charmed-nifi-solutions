@@ -13,6 +13,6 @@ jobs:
     name: PR Terraform checks
     uses: canonical/workflows-team/.github/workflows/terraform.yaml@main
     with:
-      module-directory: ./modules/charmed-airflow
-      just-targets: '["test", "test-k8s-executor"]'
+      module-directory: ./modules/charmed-nifi
+      just-targets: '["test"]'
       timeout-minutes: 40
