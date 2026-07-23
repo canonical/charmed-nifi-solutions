@@ -1,0 +1,18 @@
+# .github/workflows/terraform-checks.yaml
+name: Terraform checks
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+on:
+  pull_request:
+  workflow_call:
+
+jobs:
+  pull-request-terraform-checks:
+    name: PR Terraform checks
+    uses: canonical/workflows-team/.github/workflows/terraform.yaml@main
+    with:
+      module-directory: ./modules/charmed-airflow
+      just-targets: '["test", "test-k8s-executor"]'
+      timeout-minutes: 40
