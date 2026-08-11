@@ -12,6 +12,7 @@ This module deploys the following component:
 | Component | Charm | Role |
 | --- | --- | --- |
 | `nifi` | `nifi-k8s` | Apache NiFi data flow automation platform. |
+| `git-integrator` (optional) | `git-integrator` | Distributes git repository connection details to NiFi. Deployed only when `git_integrator.enabled` is `true`. |
 
 ---
 
@@ -23,6 +24,7 @@ This module deploys the following component:
 | --- | --- | --- | --- |
 | `model_uuid` | string | Reference to an existing Juju model to deploy NiFi into | true |
 | `nifi_k8s` | object | Configuration for the `nifi-k8s` charm module | false |
+| `git_integrator` | object | Configuration for the optional `git-integrator` charm module. Only deployed when `enabled = true`. | false |
 
 The NiFi charm input object supports:
 
@@ -34,6 +36,17 @@ The NiFi charm input object supports:
 | `units` | number | Number of application units | `1` |
 | `config` | map(string) | Charm-specific configuration options | `{}` |
 
+The Git Integrator input object supports:
+
+| Field | Type | Description | Default |
+| --- | --- | --- | --- |
+| `enabled` | bool | Whether to deploy git-integrator and relate it to NiFi | `false` |
+| `app_name` | string | Application name to deploy | `git-integrator` |
+| `channel` | string | Charm channel to deploy from | `1.0/edge` |
+| `revision` | number | Charm revision to use | `null` |
+| `units` | number | Number of application units | `1` |
+| `config` | map(string) | Charm-specific configuration options (e.g. `repository_url`) | `{}` |
+
 **Important:** The `config` map must include a `sensitive-props-key` entry with a value of at least 12 characters. This key is used to encrypt sensitive values in NiFi flow definitions. Without it, the charm will remain in BlockedStatus.
 
 ---
@@ -43,6 +56,17 @@ The NiFi charm input object supports:
 | Name | Description |
 | --- | --- |
 | `nifi_k8s` | NiFi charm module |
+| `git_integrator` | Git Integrator application resource (`null` when not enabled) |
+
+---
+
+## Relations
+
+The following relation is established when `git_integrator.enabled = true`:
+
+| Integration | Purpose |
+| --- | --- |
+| `nifi ↔ git-integrator` | Provides NiFi with git repository connection details over the `git` interface (`git-registry` endpoint). |
 
 ---
 
@@ -74,6 +98,29 @@ nifi_k8s = {
   config = {
     "sensitive-props-key" = "my-very-secure-key-123"
     # Additional NiFi configuration options
+  }
+}
+```
+
+### Example: With Git Integrator
+
+To source flow definitions from a git repository, enable the optional
+`git-integrator` charm and point it at a repository:
+
+```hcl
+model_uuid = "<model-uuid>"
+
+nifi_k8s = {
+  config = {
+    "sensitive-props-key" = "my-secret-key-12345"
+  }
+}
+
+git_integrator = {
+  enabled = true
+  config = {
+    repository_url = "https://github.com/canonical/git-integrator.git"
+    tracking_ref   = "main"
   }
 }
 ```
@@ -118,3 +165,4 @@ just destroy test/terraform_test.tfvars
 ## Repository References
 
 - https://github.com/canonical/nifi-k8s-operator
+- https://github.com/canonical/git-integrator

@@ -40,3 +40,16 @@ resource "juju_access_secret" "nifi_sensitive_props_key" {
   applications = [module.nifi_k8s.application.name]
   depends_on   = [module.nifi_k8s]
 }
+
+# Deploy the optional Git Integrator charm, which distributes git repository
+# connection details to NiFi via the git-registry relation.
+module "git_integrator" {
+  count      = var.git_integrator.enabled ? 1 : 0
+  source     = "git::https://github.com/canonical/git-integrator//terraform?ref=git-integrator-rev5"
+  model_uuid = var.model_uuid
+  app_name   = var.git_integrator.app_name
+  channel    = var.git_integrator.channel
+  units      = var.git_integrator.units
+  config     = var.git_integrator.config
+  revision   = var.git_integrator.revision
+}
