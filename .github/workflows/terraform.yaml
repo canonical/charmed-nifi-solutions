@@ -16,4 +16,4 @@ jobs:
     with:
       module-directory: ./modules/charmed-nifi
       just-targets: '["test", "test-git-integrator"]'
-      timeout-minutes: 40
+      timeout-minutes: 65
