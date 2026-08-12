@@ -82,7 +82,7 @@ kgoss-checks:
     GOSS_OPTS="--color" \
     GOSS_WAIT_OPTS="-r 480s -s 2s" \
     GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
-    kgoss run -i ubuntu:24.04 -p
+    kgoss run -i ubuntu:26.04 -p
 
 # Run nifi pod and attach shell in interactive mode
 kgoss-checks-run:
@@ -93,7 +93,7 @@ kgoss-checks-run:
     GOSS_OPTS="--color" \
     GOSS_WAIT_OPTS="-r 480s -s 2s" \
     GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
-    kgoss edit -i ubuntu:24.04 -p
+    kgoss edit -i ubuntu:26.04 -p
 
 # Apply with variables file
 apply variables_file: (initialize)
