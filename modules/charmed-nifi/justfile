@@ -115,12 +115,22 @@ wait-for-active:
     #!/usr/bin/env bash
     set -euxo pipefail
 
-    if ! juju wait-for model nifi-test \
-        --query='forEach(applications, app => app.status == "active")' \
-        --timeout=4800s; then
-        echo "Timed out waiting for model to become active"
-        exit 1
-    fi
+    timeout=1200
+    elapsed=0
+    interval=10
+    while [ $elapsed -lt $timeout ]; do
+        # Run the command on intervals to make sure juju sees the actual state of the model.
+        # Sometimes it gets stuck at waiting even if applications in the model are active
+        # if we just call it directly. This is likely a bug on juju's end.
+        if juju wait-for model nifi-test \
+            --query='forEach(applications, app => app.status == "active")' \
+            --timeout=${interval}s 2>/dev/null; then
+            exit 0
+        fi
+        elapsed=$((elapsed + interval))
+    done
+    echo "Timed out waiting for model to become active"
+    exit 1
 
 # Generic test (create model, apply, wait, kgoss checks, cleanup)
 [private]
