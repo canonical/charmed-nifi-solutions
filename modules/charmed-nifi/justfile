@@ -117,7 +117,7 @@ wait-for-active:
 
     if ! juju wait-for model nifi-test \
         --query='forEach(applications, app => app.status == "active")' \
-        --timeout=3600s; then
+        --timeout=4800s; then
         echo "Timed out waiting for model to become active"
         exit 1
     fi
