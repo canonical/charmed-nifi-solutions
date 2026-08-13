@@ -82,7 +82,7 @@ kgoss-checks:
     GOSS_OPTS="--color" \
     GOSS_WAIT_OPTS="-r 480s -s 2s" \
     GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
-    kgoss run -i ubuntu:24.04 -p
+    kgoss run -i ubuntu:26.04 -p
 
 # Run nifi pod and attach shell in interactive mode
 kgoss-checks-run:
@@ -93,7 +93,7 @@ kgoss-checks-run:
     GOSS_OPTS="--color" \
     GOSS_WAIT_OPTS="-r 480s -s 2s" \
     GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
-    kgoss edit -i ubuntu:24.04 -p
+    kgoss edit -i ubuntu:26.04 -p
 
 # Apply with variables file
 apply variables_file: (initialize)
@@ -115,12 +115,22 @@ wait-for-active:
     #!/usr/bin/env bash
     set -euxo pipefail
 
-    if ! juju wait-for model nifi-test \
-        --query='forEach(applications, app => app.status == "active")' \
-        --timeout=1200s; then
-        echo "Timed out waiting for model to become active"
-        exit 1
-    fi
+    timeout=1200
+    elapsed=0
+    interval=10
+    while [ $elapsed -lt $timeout ]; do
+        # Run the command on intervals to make sure juju sees the actual state of the model.
+        # Sometimes it gets stuck at waiting even if applications in the model are active
+        # if we just call it directly. This is likely a bug on juju's end.
+        if juju wait-for model nifi-test \
+            --query='forEach(applications, app => app.status == "active")' \
+            --timeout=${interval}s 2>/dev/null; then
+            exit 0
+        fi
+        elapsed=$((elapsed + interval))
+    done
+    echo "Timed out waiting for model to become active"
+    exit 1
 
 # Generic test (create model, apply, wait, kgoss checks, cleanup)
 [private]
@@ -144,3 +154,44 @@ _test tfvars:
 
 # Full test (default)
 test: (_test "test/terraform_test.tfvars")
+
+# Enable git-integrator in the tfvars file
+[private]
+enable_git_integrator variables_file:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    cat >> "${variables_file}" <<EOF
+
+    git_integrator = {
+    enabled = true
+    config = {
+    repository_url = "https://github.com/canonical/git-integrator.git"
+    tracking_ref   = "main"
+    }
+    }
+    EOF
+
+# Generic test with git-integrator enabled
+[private]
+_test_git_integrator tfvars:
+    #!/usr/bin/bash
+    set -euxo pipefail
+
+    trap 'just destroy "{{ tfvars }}"' EXIT
+
+    just add-model
+
+    just validate_test_tfvars "{{ tfvars }}"
+
+    just configure_sensitive_props_key "{{ tfvars }}"
+
+    just enable_git_integrator "{{ tfvars }}"
+
+    just apply "{{ tfvars }}"
+
+    just wait-for-active
+
+    just kgoss-checks
+
+# Full test with git-integrator enabled
+test-git-integrator: (_test_git_integrator "test/terraform_test_git_integrator.tfvars")
