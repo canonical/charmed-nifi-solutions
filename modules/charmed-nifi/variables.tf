@@ -30,3 +30,16 @@ variable "git_integrator" {
   })
   default = {}
 }
+
+variable "traefik" {
+  description = "Inputs for the optional traefik-k8s charm module. When enabled, deploys traefik-k8s and relates it to NiFi's ingress endpoint."
+  type = object({
+    enabled  = optional(bool, false)
+    app_name = optional(string, "traefik")
+    channel  = optional(string, "latest/stable")
+    units    = optional(number, 1)
+    config   = optional(map(string), {})
+    revision = optional(number, null)
+  })
+  default = {}
+}

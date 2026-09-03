@@ -1,0 +1,11 @@
+command:
+  install-deps:
+    exec: |
+      apt update && apt install -y curl jq
+    exit-status: 0
+  # Traefik publishes its route a moment after the relation settles, so wait for
+  # the proxied path to answer before asserting on it.
+  nifi-ingress-ready:
+    exec: >-
+      curl -fsS http://traefik.nifi-test.svc.cluster.local/nifi-test-nifi/nifi-api/system-diagnostics
+    exit-status: 0

@@ -84,6 +84,17 @@ kgoss-checks:
     GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
     kgoss run -i ubuntu:26.04 -p
 
+# Run kgoss checks against the NiFi UI and API through the Traefik ingress
+kgoss-checks-traefik:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    
+    env GOSS_FILES_PATH="test/traefik" \
+    GOSS_OPTS="--color" \
+    GOSS_WAIT_OPTS="-r 480s -s 2s" \
+    GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
+    kgoss run -i ubuntu:26.04 -p
+
 # Run nifi pod and attach shell in interactive mode
 kgoss-checks-run:
     #!/usr/bin/bash
@@ -195,3 +206,42 @@ _test_git_integrator tfvars:
 
 # Full test with git-integrator enabled
 test-git-integrator: (_test_git_integrator "test/terraform_test_git_integrator.tfvars")
+
+# Enable traefik in the tfvars file
+[private]
+enable_traefik variables_file:
+    #!/usr/bin/bash
+    set -euxo pipefail
+    cat >> "${variables_file}" <<EOF
+
+    traefik = {
+    enabled = true
+    }
+    EOF
+
+# Generic test with traefik enabled
+[private]
+_test_traefik tfvars:
+    #!/usr/bin/bash
+    set -euxo pipefail
+
+    trap 'just destroy "{{ tfvars }}"' EXIT
+
+    just add-model
+
+    just validate_test_tfvars "{{ tfvars }}"
+
+    just configure_sensitive_props_key "{{ tfvars }}"
+
+    just enable_traefik "{{ tfvars }}"
+
+    just apply "{{ tfvars }}"
+
+    just wait-for-active
+
+    just kgoss-checks
+
+    just kgoss-checks-traefik
+
+# Full test with traefik enabled
+test-traefik: (_test_traefik "test/terraform_test_traefik.tfvars")
