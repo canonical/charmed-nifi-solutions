@@ -1,16 +1,15 @@
+# Checks run from the host against the URL Traefik itself reports via show-proxied-endpoints.
+# NIFI_INGRESS_URL is exported by the `goss-checks-traefik` just recipe.
 command:
-  # The UI shell loads even when the proxy properties are wrong, so the API call
-  # below is the one that actually exercises NiFi's X-Forwarded-Prefix handling.
   nifi-ui-through-ingress:
     exec: >-
-      curl -fsS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 --retry-all-errors
-      http://traefik.nifi-test.svc.cluster.local/nifi-test-nifi/nifi/
+      curl -fsS -o /dev/null -w '%{http_code}' {{ .Env.NIFI_INGRESS_URL }}/nifi/
     exit-status: 0
     stdout:
       - "200"
+  # The UI shell loads even when the proxy properties are wrong, so this is the
+  # call that actually exercises NiFi's X-Forwarded-Prefix handling.
   nifi-api-through-ingress:
     exec: >-
-      curl -fsS --retry 5 --retry-delay 5 --retry-all-errors
-      http://traefik.nifi-test.svc.cluster.local/nifi-test-nifi/nifi-api/flow/status
-      | jq -e '.controllerStatus'
+      curl -fsS {{ .Env.NIFI_INGRESS_URL }}/nifi-api/flow/status | jq -e '.controllerStatus'
     exit-status: 0

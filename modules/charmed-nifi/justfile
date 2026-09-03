@@ -66,12 +66,14 @@ configure_sensitive_props_key variables_file:
     #!/usr/bin/bash
     set -euxo pipefail
     
-    # Generate a random 32-character key
-    RANDOM_KEY=$(openssl rand -base64 24)
+    # Generate a random 32-character key. Hex rather than base64: the base64
+    # alphabet includes "/", which terminates the sed expression below and makes
+    # this recipe fail.
+    RANDOM_KEY=$(openssl rand -hex 16)
     
     # Update tfvars file with the secret value
     # Terraform will create the Juju secret and grant it to NiFi after deployment
-    sed -i 's/config = {}/config = {\n    "sensitive-props-key" = "'"${RANDOM_KEY}"'"\n  }/' "${variables_file}"
+    sed -i 's|config = {}|config = {\n    "sensitive-props-key" = "'"${RANDOM_KEY}"'"\n  }|' "${variables_file}"
 
 # Run kgoss checks
 kgoss-checks:
@@ -84,16 +86,24 @@ kgoss-checks:
     GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
     kgoss run -i ubuntu:26.04 -p
 
-# Run kgoss checks against the NiFi UI and API through the Traefik ingress
-kgoss-checks-traefik:
+# Ask Traefik for NiFi's proxied URL
+[private]
+proxied-url app_name="nifi":
+    #!/usr/bin/bash
+    set -euo pipefail
+    juju run traefik/0 show-proxied-endpoints --format=json \
+      | jq -r '.[].results["proxied-endpoints"]' \
+      | jq -er --arg app "{{ app_name }}" '.[$app].url'
+
+# Run goss checks against the NiFi UI and API through the Traefik ingress
+goss-checks-traefik:
     #!/usr/bin/bash
     set -euxo pipefail
-    
-    env GOSS_FILES_PATH="test/traefik" \
-    GOSS_OPTS="--color" \
-    GOSS_WAIT_OPTS="-r 480s -s 2s" \
-    GOSS_KUBECTL_OPTS="--namespace=nifi-test" \
-    kgoss run -i ubuntu:26.04 -p
+
+    NIFI_INGRESS_URL="$(just proxied-url)"
+    export NIFI_INGRESS_URL
+
+    goss --gossfile test/traefik/goss.yaml validate --retry-timeout 300s --sleep 5s --color
 
 # Run nifi pod and attach shell in interactive mode
 kgoss-checks-run:
@@ -241,7 +251,7 @@ _test_traefik tfvars:
 
     just kgoss-checks
 
-    just kgoss-checks-traefik
+    just goss-checks-traefik
 
 # Full test with traefik enabled
 test-traefik: (_test_traefik "test/terraform_test_traefik.tfvars")
