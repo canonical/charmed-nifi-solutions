@@ -53,3 +53,17 @@ module "git_integrator" {
   config     = var.git_integrator.config
   revision   = var.git_integrator.revision
 }
+
+# Deploy the optional Traefik charm, which exposes the NiFi web UI and REST API
+# outside the cluster. The charm module sets `trust` itself, so no extra
+# permissions need granting here.
+module "traefik" {
+  count      = var.traefik.enabled ? 1 : 0
+  source     = "git::https://github.com/canonical/traefik-k8s-operator//terraform?ref=traefik-k8s-rev440"
+  model_uuid = var.model_uuid
+  app_name   = var.traefik.app_name
+  channel    = var.traefik.channel
+  units      = var.traefik.units
+  config     = var.traefik.config
+  revision   = var.traefik.revision
+}

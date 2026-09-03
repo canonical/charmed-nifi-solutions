@@ -15,5 +15,5 @@ jobs:
     uses: canonical/workflows-team/.github/workflows/terraform.yaml@main
     with:
       module-directory: ./modules/charmed-nifi
-      just-targets: '["test", "test-git-integrator"]'
+      just-targets: '["test", "test-git-integrator", "test-traefik"]'
       timeout-minutes: 120

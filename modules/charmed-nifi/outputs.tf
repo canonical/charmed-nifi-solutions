@@ -10,3 +10,8 @@ output "git_integrator" {
   description = "Git Integrator application resource (null when not enabled)."
   value       = var.git_integrator.enabled ? module.git_integrator[0].application : null
 }
+
+output "traefik" {
+  description = "Traefik application resource (null when not enabled)."
+  value       = var.traefik.enabled ? module.traefik[0].application : null
+}
