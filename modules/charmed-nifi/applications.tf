@@ -27,7 +27,7 @@ module "nifi_k8s" {
   config = merge(
     var.nifi_k8s.config,
     length(juju_secret.nifi_sensitive_props_key) > 0 ? {
-      "sensitive-props-key" = juju_secret.nifi_sensitive_props_key[0].secret_id
+      "sensitive-props-key" = juju_secret.nifi_sensitive_props_key[0].secret_uri
     } : {}
   )
 }
